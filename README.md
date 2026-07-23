@@ -49,9 +49,6 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-The project already contains the required Python dependency, which is currently
-listed in [requirements.txt](requirements.txt).
-
 ---
 
 ## 3. Open Modelica and run the default parameters first
@@ -62,9 +59,9 @@ simulation works before moving on to the Python workflow.
 
 The images in the repository show the expected workflow in the OpenModelica GUI:
 
-![Run Modelica example](Run Modelica example.png)
+![Run Modelica example](Run%20Modelica%20example.png)
 
-![Plot in modellica](Plot in modellica.png)
+![Plot in modellica](Plot%20in%20modellica.png)
 
 This first run is useful because it gives you a quick sanity check that the model
 loads correctly and that your OpenModelica installation is working.
@@ -104,10 +101,10 @@ Run a single configuration from a JSON file:
 python run_from_json.py default_input.json
 ```
 
-Run a sweep over many combinations:
+Run a sweep over every combination defined in the JSON file:
 
 ```bash
-python run_sweep.py full_input.json
+python simulate_all.py full_input.json
 ```
 
 The example files in [Simulation](Simulation/) already contain useful starting
@@ -116,8 +113,8 @@ points:
 - [Simulation/default_input.json](Simulation/default_input.json) — a single default setup
 - [Simulation/full_input.json](Simulation/full_input.json) — a broader sweep with several servo options
 
-The sweep script explores the Cartesian product of the candidate values and writes
-its results to [Simulation/sim_sweep_result.csv](Simulation/sim_sweep_result.csv).
+The simulation-all script explores the Cartesian product of the candidate values
+and writes its results to [Simulation/sim_sweep_result.csv](Simulation/sim_sweep_result.csv).
 
 ---
 
@@ -139,18 +136,6 @@ If you want to save the plot under a different name, use:
 ```bash
 python plot_tradespace.py --output my_plot.png
 ```
-
----
-
-## 7. Customize your own input
-
-If you want to experiment further, create or edit your own JSON files in
-[Simulation](Simulation/). The Python scripts read those files and convert the
-values into the model inputs for you.
-
-A good starting point is to change the servo options, adjust the motion
-sequences, or try different link masses and lengths. Keeping the structure of
-the existing JSON files will make the scripts work as expected.
 
 ---
 

@@ -7,6 +7,7 @@ runs, argument combinations sourced from a JSON file).
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import shutil
@@ -28,7 +29,7 @@ LEAF_SPEC: list[tuple[tuple[str, ...], object, str]] = [
     (("shoulder", "servo", "max_speed"), 394, "float"),
     (("shoulder", "servo", "servo_mass"), 0.055, "float"),
     (("shoulder", "link_length"), 0.220, "float"),
-    (("shoulder", "link_mass"), 0.080, "float"),
+    (("shoulder", "link_mass"), 0.040, "float"),
     (("elbow", "position_sequence"), [-45, -30, -30, 5, -25, -25, -45], "float_list"),
     (("elbow", "servo", "tau_stall"), 0.44, "float"),
     (("elbow", "servo", "max_speed"), 394, "float"),
@@ -217,6 +218,77 @@ def flatten_for_csv(obj: object, prefix: str = "", out: dict | None = None) -> d
     return out
 
 
+def build_result_row(
+    sim_input: dict,
+    stop_time: float,
+    move_time: float,
+    shoulder_final: float = 0.0,
+    elbow_final: float = 0.0,
+    extra: dict | None = None,
+) -> dict:
+    flatten = flatten_for_csv(sim_input)
+    row: dict[str, object] = {}
+    row["success"] = move_time > 0.0
+    row["move_time_s"] = round(move_time, 4)
+    row.update(flatten)
+    row["stop_time"] = stop_time
+    if extra:
+        row.update(extra)
+    row["shoulder_final_deg"] = round(shoulder_final, 3)
+    row["elbow_final_deg"] = round(elbow_final, 3)
+    return row
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run a single RoboticArm simulation")
+    for path, default, kind in LEAF_SPEC:
+        flag = cli_flag(path)
+        if kind == "float":
+            parser.add_argument(flag, type=float, default=default)
+        elif kind == "float_list":
+            parser.add_argument(flag, type=parse_float_list, default=default)
+        elif kind == "bool_list":
+            parser.add_argument(flag, type=parse_bool_list, default=default)
+        else:
+            raise ValueError(f"Unknown kind {kind!r} for {flag}")
+    parser.add_argument("--shoulder-servo-name", default="",
+                         help="Name of the catalog servo used (CSV labeling only)")
+    parser.add_argument("--elbow-servo-name", default="",
+                         help="Name of the catalog servo used (CSV labeling only)")
+    parser.add_argument("--output", type=Path, default=HERE.parent / "output" / "sim_result.csv",
+                         help="CSV file to write the result row to")
+    parser.add_argument("--append", action="store_true",
+                         help="Append the result row instead of overwriting")
+    return parser
+
+
+def build_sim_input(args: argparse.Namespace) -> tuple[dict, float]:
+    sim_input: dict = {}
+    stop_time = None
+    for path, _default, _kind in LEAF_SPEC:
+        value = getattr(args, dest_name(path))
+        if path == ("stop_time",):
+            stop_time = value
+        else:
+            set_nested(sim_input, path, value)
+    if stop_time is None:
+        raise ValueError("stop_time was not provided")
+    return sim_input, float(stop_time)
+
+
+def run_from_cli(argv: list[str] | None = None) -> dict:
+    args = build_parser().parse_args(argv)
+    sim_input, stop_time = build_sim_input(args)
+
+    extra = {}
+    if args.shoulder_servo_name:
+        extra["shoulder_servo_name"] = args.shoulder_servo_name
+    if args.elbow_servo_name:
+        extra["elbow_servo_name"] = args.elbow_servo_name
+
+    return write_result_row(sim_input, stop_time, args.output, args.append, extra=extra)
+
+
 def write_result_row(
     sim_input: dict,
     stop_time: float,
@@ -228,14 +300,14 @@ def write_result_row(
     result_csv = run_simulation(omc, sim_input, stop_time)
     move_time, shoulder_final, elbow_final = parse_result(result_csv)
 
-    row = flatten_for_csv(sim_input)
-    row["stop_time"] = stop_time
-    if extra:
-        row.update(extra)
-    row["move_time_s"] = round(move_time, 4)
-    row["finished"] = move_time > 0.0
-    row["shoulder_final_deg"] = round(shoulder_final, 3)
-    row["elbow_final_deg"] = round(elbow_final, 3)
+    row = build_result_row(
+        sim_input,
+        stop_time,
+        move_time,
+        shoulder_final,
+        elbow_final,
+        extra=extra,
+    )
 
     import csv
 
@@ -248,5 +320,5 @@ def write_result_row(
             writer.writeheader()
         writer.writerow(row)
 
-    print(f"move_time = {move_time:.4f} s ({'finished' if row['finished'] else 'unfinished'})")
+    print(f"move_time = {move_time:.4f} s ({'success' if row['success'] else 'unsuccessful'})")
     return row

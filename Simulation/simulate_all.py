@@ -1,27 +1,7 @@
-"""Run RoboticArm.mo once per combination of a JSON sweep file, via simulate_one.py.
+"""Run RoboticArm.mo for every combination defined by a JSON sweep file, via run_single.py.
 
-sweep_input.json has the same shape as sim_input.json, except:
-
-- any scalar leaf other than the servo's tau_stall/max_speed/servo_mass
-  (link_length, link_mass, proxy_mass, proxy_length, proxy_z_offset,
-  stop_time) may hold a *list* of candidate values instead of a single
-  number -- the sweep is the Cartesian product of every such list, all other
-  fields held fixed. position_sequence and carry_sequence are always a
-  single fixed sequence, not swept.
-- a joint's servo is swept by *name*, not by field: put a
-  "servo_options": ["SG90", "AD002", ...] list (keys into
-  sim_core.SERVO_CATALOG) under "shoulder"/"elbow" instead of a "servo"
-  dict. Each name expands to its real tau_stall+max_speed+servo_mass as one
-  indivisible unit, so a run never mixes one servo's torque with another
-  servo's mass. A plain "servo" dict (with fields that may themselves be
-  lists) is still accepted as a fallback and swept per-field as before.
-
-For now the combinations come from this hand-written JSON file; the plan is
-to have the system (SysML) model generate/populate it instead.
-
-Usage:
-  python examples/RoboticArm/Simulation/run_sweep.py
-  python examples/RoboticArm/Simulation/run_sweep.py my_sweep.json
+This script reads the JSON input, expands every list-based option into its
+Cartesian product, and launches a single simulation for each combination.
 """
 
 from __future__ import annotations
@@ -35,7 +15,7 @@ from pathlib import Path
 import sim_core
 
 HERE = Path(__file__).resolve().parent
-SIMULATE_ONE = HERE / "simulate_one.py"
+RUN_SINGLE = HERE / "simulate_one.py"
 OUT_CSV = HERE / "sim_sweep_result.csv"
 
 SERVO_JOINTS = ("shoulder", "elbow")
@@ -52,20 +32,18 @@ def candidates_for(sweep_input: dict, path: tuple[str, ...], default: object, ki
     except KeyError:
         return [default]
     if kind == "float" and isinstance(value, list):
-        return value  # this field is being swept
-    return [value]  # fixed for every run (includes the list-typed fields)
+        return value
+    return [value]
 
 
 def servo_candidates(sweep_input: dict, joint: str) -> list[dict]:
-    """One dict per candidate servo for `joint`: {name, tau_stall, max_speed, servo_mass}.
-
-    Names in "servo_options" are looked up in sim_core.SERVO_CATALOG and swept
-    whole. Falls back to the old per-field sweep of a plain "servo" dict,
-    with name="" (not logged) since there's no catalog entry to name it after.
-    """
+    """One dict per candidate servo for `joint`: {name, tau_stall, max_speed, servo_mass}."""
     joint_input = sweep_input.get(joint, {})
     options = joint_input.get("servo_options")
     if options:
+        unknown = [name for name in options if name not in sim_core.SERVO_CATALOG]
+        if unknown:
+            raise KeyError(f"Unknown servo(s) for {joint}: {unknown}")
         return [{"name": name, **sim_core.SERVO_CATALOG[name]} for name in options]
 
     servo = joint_input.get("servo", {})
@@ -83,7 +61,7 @@ def servo_candidates(sweep_input: dict, joint: str) -> list[dict]:
 
 
 def main() -> None:
-    input_path = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "sweep_input.json"
+    input_path = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "full_input.json"
     sweep_input = json.loads(input_path.read_text(encoding="utf-8"))
 
     per_field_candidates = [
@@ -122,7 +100,7 @@ def main() -> None:
         label = " ".join(label_bits + args)
         print(f"\n[{i}/{len(combos)}] {label}")
         proc = subprocess.run(
-            [sys.executable, str(SIMULATE_ONE), *args, "--output", str(OUT_CSV), "--append"]
+            [sys.executable, str(RUN_SINGLE), *args, "--output", str(OUT_CSV), "--append"]
         )
         if proc.returncode != 0:
             sys.exit(f"Run {i}/{len(combos)} failed")

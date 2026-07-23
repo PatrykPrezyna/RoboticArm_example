@@ -1,11 +1,11 @@
 """Plot the cost-vs-move-time trade space from a run_sweep.py results CSV.
 
 Reads a sweep result CSV (shoulder_servo_name / elbow_servo_name / move_time_s
-/ finished / stop_time columns, as written by sim_core.write_result_row) and
+/ success / stop_time columns, as written by sim_core.write_result_row) and
 scatter-plots total servo cost (sim_core.SERVO_CATALOG's cost_usd, shoulder +
 elbow) against move time.
 
-Combinations that never finished within stop_time have move_time_s == 0,
+Combinations that did not succeed within stop_time have move_time_s == 0,
 which is not a real duration and would look "instant" on a time axis -- they
 are plotted separately, as red X markers pinned at stop_time (the actual
 sim run length), with a dashed reference line at that same height. Pass
@@ -73,8 +73,8 @@ def main() -> None:
             continue
         cost = servo_cost(shoulder_name) + servo_cost(elbow_name)
         label = f"{shoulder_name}/{elbow_name}"
-        finished = row["finished"].strip().lower() in ("true", "1")
-        if finished:
+        success = str(row.get("success", "")).strip().lower() in ("true", "1", "yes")
+        if success:
             ok_cost.append(cost)
             ok_time.append(float(row["move_time_s"]))
             ok_label.append(label)
@@ -88,14 +88,14 @@ def main() -> None:
     fig, ax = plt.subplots(figsize=(9, 6))
 
     if ok_cost:
-        ax.scatter(ok_cost, ok_time, c="tab:blue", marker="o", s=70, label="Finished", zorder=3)
+        ax.scatter(ok_cost, ok_time, c="tab:blue", marker="o", s=70, label="Successful", zorder=3)
         for x, y, label in zip(ok_cost, ok_time, ok_label):
             ax.annotate(label, (x, y), textcoords="offset points", xytext=(6, 4), fontsize=7)
 
     if fail_cost and not args.hide_failed:
         fail_y = [stop_time] * len(fail_cost)
         ax.scatter(fail_cost, fail_y, c="tab:red", marker="x", s=90,
-                   label=f"Did not finish (>= {stop_time:g}s)", zorder=3)
+                   label=f"Did not succeed (>= {stop_time:g}s)", zorder=3)
         for x, y, label in zip(fail_cost, fail_y, fail_label):
             ax.annotate(label, (x, y), textcoords="offset points", xytext=(6, 4),
                         fontsize=7, color="tab:red")
@@ -109,7 +109,7 @@ def main() -> None:
     ax.set_ylabel("Move time to finish sequence [s]")
     title = "Servo trade space: cost vs. move time"
     if args.hide_failed:
-        title += " (finished only)"
+        title += " (successful only)"
     ax.set_title(title)
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
