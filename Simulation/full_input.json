@@ -1,0 +1,58 @@
+{
+  "servo_catalog": {
+    "SG90": {
+      "link": "https://shop.4tronix.co.uk/products/sg90-9g-micro-servo",
+      "tau_stall": 0.118,
+      "max_speed": 500.0,
+      "servo_mass": 0.009,
+      "cost_usd": 3.68
+    },
+    "AD002": {
+      "link": "https://www.adeept.com/adeept-ad002-servo-motor-for-rc-robot-car-compatible-with-mg90s-sevo-metal-gear_p0275.html",
+      "tau_stall": 0.196,
+      "max_speed": 545.0,
+      "servo_mass": 0.013,
+      "cost_usd": 15.99
+    },
+    "AD004": {
+      "link": "https://www.adeept.com/adeept-ad004-17g-micro-digital-servo-motor-48kgcm-torque-all-metal-gears-with-25t-servo-arm-for-rc-crawler-car-upgrade-servo-parts-model-boat_p0444.html",
+      "tau_stall": 0.471,
+      "max_speed": 395.0,
+      "servo_mass": 0.017,
+      "cost_usd": 28.99
+    },
+    "MG996R": {
+      "link": "https://www.adeept.com/6xmg996r_p0299.html",
+      "tau_stall": 1.324,
+      "max_speed": 353.0,
+      "servo_mass": 0.055,
+      "cost_usd": 4.67
+    },
+    "DS3218MG": {
+      "link": "https://speedyfpv.com/products/ds3218mg-digital-servo-high-speed-high-torque-metal-gear-waterproof-20kg-torque-180-degrees-w-accessories",
+      "tau_stall": 1.863,
+      "max_speed": 375.0,
+      "servo_mass": 0.058,
+      "cost_usd": 12.99
+    }
+  },
+  "shoulder": {
+    "position_sequence": [70, 50, 50, 75, 55, 55, 70],
+    "servo_options": ["SG90", "AD002", "AD004", "MG996R", "DS3218MG"],
+    "link_length": 0.220,
+    "link_mass": 0.080
+  },
+  "elbow": {
+    "position_sequence": [-45, -30, -30, 5, -25, -25, -45],
+    "servo_options": ["SG90", "AD002", "AD004", "MG996R", "DS3218MG"],
+    "link_length": 0.120,
+    "link_mass": 0.045
+  },
+  "load": {
+    "proxy_mass": 0.01,
+    "proxy_length": 0.080,
+    "proxy_z_offset": 0.040,
+    "carry_sequence": [false, true, true, true, false, false]
+  },
+  "stop_time": 15
+}
