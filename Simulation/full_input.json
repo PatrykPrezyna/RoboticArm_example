@@ -31,18 +31,18 @@
   },
   "shoulder": {
     "position_sequence": [70, 50, 50, 75, 55, 55, 70],
-    "servo_options": ["SG90", "AD002", "AD004", "MG996R", "DS3218MG"],
+    "servo_options": ["AD002", "AD004", "MG996R", "DS3218MG"],
     "link_length": 0.220,
     "link_mass": 0.040
   },
   "elbow": {
     "position_sequence": [-45, -30, -30, 5, -25, -25, -45],
-    "servo_options": ["SG90", "AD002", "AD004", "MG996R", "DS3218MG"],
+    "servo_options": ["AD002", "AD004", "MG996R", "DS3218MG"],
     "link_length": 0.120,
     "link_mass": 0.045
   },
   "load": {
-    "proxy_mass": 0.02,
+    "proxy_mass": 0.03,
     "proxy_length": 0.080,
     "proxy_z_offset": 0.040,
     "carry_sequence": [false, true, true, true, false, false]

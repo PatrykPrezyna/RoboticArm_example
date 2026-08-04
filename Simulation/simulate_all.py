@@ -16,7 +16,9 @@ import sim_core
 
 HERE = Path(__file__).resolve().parent
 RUN_SINGLE = HERE / "simulate_one.py"
-OUT_CSV = HERE / "sim_sweep_result.csv"
+OUT_DIR = HERE.parent / "output"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+OUT_CSV = None
 
 SERVO_JOINTS = ("shoulder", "elbow")
 SERVO_FIELDS = ("tau_stall", "max_speed", "servo_mass")
@@ -77,8 +79,9 @@ def main() -> None:
     ))
     print(f"Running {len(combos)} combination(s)...")
 
-    if OUT_CSV.is_file():
-        OUT_CSV.unlink()
+    timestamp = __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_csv = OUT_DIR / f"sim_result_{timestamp}.csv"
+    print(f"Writing results to {output_csv}")
 
     for i, combo in enumerate(combos, start=1):
         *field_values, shoulder_servo, elbow_servo = combo
@@ -100,12 +103,12 @@ def main() -> None:
         label = " ".join(label_bits + args)
         print(f"\n[{i}/{len(combos)}] {label}")
         proc = subprocess.run(
-            [sys.executable, str(RUN_SINGLE), *args, "--output", str(OUT_CSV), "--append"]
+            [sys.executable, str(RUN_SINGLE), *args, "--output", str(output_csv), "--append"]
         )
         if proc.returncode != 0:
             sys.exit(f"Run {i}/{len(combos)} failed")
 
-    print(f"\nWrote {OUT_CSV} ({len(combos)} row(s))")
+    print(f"\nWrote {output_csv} ({len(combos)} row(s))")
 
 
 if __name__ == "__main__":

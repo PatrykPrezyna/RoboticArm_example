@@ -8,6 +8,7 @@ runs, argument combinations sourced from a JSON file).
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import shutil
@@ -239,6 +240,14 @@ def build_result_row(
     return row
 
 
+def default_output_path(output_dir: Path | None = None) -> Path:
+    if output_dir is None:
+        output_dir = HERE.parent / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return output_dir / f"sim_result_{timestamp}.csv"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a single RoboticArm simulation")
     for path, default, kind in LEAF_SPEC:
@@ -255,7 +264,7 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Name of the catalog servo used (CSV labeling only)")
     parser.add_argument("--elbow-servo-name", default="",
                          help="Name of the catalog servo used (CSV labeling only)")
-    parser.add_argument("--output", type=Path, default=HERE.parent / "output" / "sim_result.csv",
+    parser.add_argument("--output", type=Path, default=None,
                          help="CSV file to write the result row to")
     parser.add_argument("--append", action="store_true",
                          help="Append the result row instead of overwriting")
@@ -286,7 +295,8 @@ def run_from_cli(argv: list[str] | None = None) -> dict:
     if args.elbow_servo_name:
         extra["elbow_servo_name"] = args.elbow_servo_name
 
-    return write_result_row(sim_input, stop_time, args.output, args.append, extra=extra)
+    output_path = args.output or default_output_path()
+    return write_result_row(sim_input, stop_time, output_path, args.append, extra=extra)
 
 
 def write_result_row(

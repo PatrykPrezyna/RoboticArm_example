@@ -21,16 +21,37 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime as dt
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError:  # pragma: no cover - exercised when matplotlib is absent
+    plt = None
 
 import sim_core
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_CSV = HERE / "sim_sweep_result.csv"
-DEFAULT_OUTPUT = HERE  / "tradespace.png"
+DEFAULT_OUTPUT_DIR = HERE.parent / "output"
+DEFAULT_OUTPUT = DEFAULT_OUTPUT_DIR / "tradespace.png"
+
+
+def default_plot_output(output_dir: Path | None = None) -> Path:
+    if output_dir is None:
+        output_dir = DEFAULT_OUTPUT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return output_dir / f"tradespace_{timestamp}.png"
+
+
+def latest_result_csv(output_dir: Path | None = None) -> Path:
+    if output_dir is None:
+        output_dir = DEFAULT_OUTPUT_DIR
+    csv_files = sorted(output_dir.glob("sim_result_*.csv"))
+    if not csv_files:
+        raise FileNotFoundError(f"No result CSV files found in {output_dir}")
+    return csv_files[-1]
 
 
 def servo_cost(name: str) -> float:
@@ -42,21 +63,37 @@ def load_rows(csv_path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
+def pareto_frontier(points: list[tuple[float, float, str]]) -> list[tuple[float, float, str]]:
+    """Return the non-dominated points for minimization of cost and time."""
+    frontier: list[tuple[float, float, str]] = []
+    for point in sorted(points, key=lambda item: (item[0], item[1])):
+        cost, move_time, _ = point
+        if not frontier or move_time < min(prev_move_time for _, prev_move_time, _ in frontier):
+            frontier.append(point)
+    return frontier
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("csv_path", nargs="?", type=Path, default=DEFAULT_CSV,
+    parser.add_argument("csv_path", nargs="?", type=Path, default=None,
                          help="Sweep result CSV from run_sweep.py")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT,
+    parser.add_argument("--output", type=Path, default=None,
                          help="Image file to write the plot to")
-    parser.add_argument("--hide-failed", action="store_true",
-                         help="Drop combinations that didn't finish instead of "
-                              "marking them with red X's")
+    parser.add_argument("--show-failed", action="store_true",
+                         help="Include combinations that did not succeed as red X markers")
     args = parser.parse_args()
 
-    if not args.csv_path.is_file():
-        sys.exit(f"No such file: {args.csv_path} (run run_sweep.py first)")
+    csv_path = args.csv_path
+    if csv_path is None:
+        try:
+            csv_path = latest_result_csv()
+        except FileNotFoundError as exc:
+            sys.exit(str(exc))
 
-    rows = load_rows(args.csv_path)
+    if not csv_path.is_file():
+        sys.exit(f"No such file: {csv_path} (run simulate_all.py or run_single.py first)")
+
+    rows = load_rows(csv_path)
     if not rows:
         sys.exit(f"{args.csv_path} has no data rows")
 
@@ -85,14 +122,25 @@ def main() -> None:
     if skipped_unnamed:
         print(f"Skipped {skipped_unnamed} row(s) with no servo name (not in SERVO_CATALOG)")
 
+    if plt is None:
+        raise SystemExit("matplotlib is required to create the trade-space plot")
+
     fig, ax = plt.subplots(figsize=(9, 6))
 
     if ok_cost:
         ax.scatter(ok_cost, ok_time, c="tab:blue", marker="o", s=70, label="Successful", zorder=3)
+        frontier_points = pareto_frontier(list(zip(ok_cost, ok_time, ok_label)))
+        if frontier_points:
+            frontier_costs = [point[0] for point in frontier_points]
+            frontier_times = [point[1] for point in frontier_points]
+            ax.plot(frontier_costs, frontier_times, color="tab:orange", linestyle="--",
+                    linewidth=1.8, marker="o", markersize=5, label="Pareto frontier", zorder=4)
+            ax.scatter(frontier_costs, frontier_times, c="tab:orange", marker="o", s=80,
+                       edgecolor="black", linewidth=0.6, zorder=5)
         for x, y, label in zip(ok_cost, ok_time, ok_label):
             ax.annotate(label, (x, y), textcoords="offset points", xytext=(6, 4), fontsize=7)
 
-    if fail_cost and not args.hide_failed:
+    if fail_cost and args.show_failed:
         fail_y = [stop_time] * len(fail_cost)
         ax.scatter(fail_cost, fail_y, c="tab:red", marker="x", s=90,
                    label=f"Did not succeed (>= {stop_time:g}s)", zorder=3)
@@ -102,21 +150,22 @@ def main() -> None:
         ax.axhline(stop_time, color="gray", linestyle="--", linewidth=1, alpha=0.6,
                    label=f"stop_time cutoff ({stop_time:g}s)")
 
-    if args.hide_failed and fail_cost:
+    if fail_cost and not args.show_failed:
         print(f"Hiding {len(fail_cost)} failed combination(s)")
 
     ax.set_xlabel("Total servo cost, shoulder + elbow [USD]")
     ax.set_ylabel("Move time to finish sequence [s]")
     title = "Servo trade space: cost vs. move time"
-    if args.hide_failed:
+    if not args.show_failed:
         title += " (successful only)"
     ax.set_title(title)
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(args.output, dpi=150, bbox_inches="tight")
-    print(f"Wrote {args.output}")
+    output_path = args.output or default_plot_output()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    print(f"Wrote {output_path}")
 
 
 if __name__ == "__main__":
