@@ -193,25 +193,53 @@ like `sim_result_YYYYMMDD_HHMMSS.csv`.
 
 ---
 
-## 6. Generate a tradespace
+## 6. Generate an early trade space without Modelica
+
+The early trade-space workflow uses the component options in
+[Simple_tradespace/inout.json](Simple_tradespace/inout.json). It enumerates all
+combinations and calculates total component cost and mass without running a
+simulation:
+
+```bash
+# Run from the repository root
+python plot_tradespace.py early
+```
+
+This writes both a timestamped CSV and a cost-versus-mass plot to `output`.
+Every plotted point has a concept ID (`C01`, `C02`, and so on), and the terminal
+prints the complete configuration of each Pareto-optimal concept. The servo
+motor has `quantity: 5`, so its mass and cost account for the wrist, gripper,
+base, elbow, and shoulder actuators.
+
+To use a different input or add labels to every candidate point:
+
+```bash
+python plot_tradespace.py early path/to/components.json --labels
+```
+
+## 7. Generate a simulation trade space
 
 Once you have sweep results, you can generate a trade-space plot:
 
 ```bash
-python plot_tradespace.py
+# Run from the repository root
+python plot_tradespace.py simulation
 ```
 
 This uses the most recently created result CSV in the `output` folder and writes
-a timestamped plot there, such as `output/tradespace_YYYYMMDD_HHMMSS.png`. The
-plot shows servo cost on the horizontal axis and motion time on the vertical
-axis. Blue points represent successful runs, while red X markers indicate
-combinations that did not succeed before the stop time.
+a timestamped plot there. The plot shows servo cost on the horizontal axis and
+motion time on the vertical axis. Servo prices are read from
+[Simulation/full_input.json](Simulation/full_input.json), so the same catalog
+drives both the simulation sweep and its plot.
 
 If you want to save the plot under a different name, use:
 
 ```bash
-python plot_tradespace.py --output output/my_plot.png
+python plot_tradespace.py simulation --output output/my_plot.png
 ```
+
+The old `python plot_tradespace.py` command still works when run from inside
+the `Simulation` folder.
 
 ---
 
