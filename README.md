@@ -205,11 +205,13 @@ simulation:
 python plot_tradespace.py early
 ```
 
-This writes both a timestamped CSV and a cost-versus-mass plot to `output`.
-Every plotted point has a concept ID (`C01`, `C02`, and so on), and the terminal
-prints the complete configuration of each Pareto-optimal concept. The servo
-motor has `quantity: 5`, so its mass and cost account for the wrist, gripper,
-base, elbow, and shoulder actuators.
+This writes a timestamped CSV, the main cost-versus-mass plot, and a multi-panel
+decision plot to `output`. The decision figure colors the concepts separately
+by user interface, battery, servo motor, and controller. Every plotted point has
+a concept ID (`C01`, `C02`, and so on), and the terminal prints the complete
+configuration of each Pareto-optimal concept. The servo motor has `quantity: 5`,
+so its mass and cost account for the wrist, gripper, base, elbow, and shoulder
+actuators.
 
 To use a different input or add labels to every candidate point:
 

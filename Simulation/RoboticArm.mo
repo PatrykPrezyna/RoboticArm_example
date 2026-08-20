@@ -50,6 +50,12 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     SI.Length proxy_length = 0.080 "Proxy length along the forearm [m]";
     SI.Length proxy_z_offset = 0.040 "Proxy vertical offset [m]";
     Boolean carry_sequence[6] = {false, true, true, true, false, false} "Carry-load flag for each waypoint stage";
+    annotation(
+      Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {
+        Rectangle(extent = {{-50, 30}, {50, -40}}, lineColor = {0, 0, 0}, fillColor = {198, 156, 80}, fillPattern = FillPattern.Solid),
+        Line(points = {{-50, 0}, {50, 0}}, color = {0, 0, 0}),
+        Text(extent = {{-50, -28}, {50, 8}}, textColor = {0, 0, 0}, textString = "m"),
+        Text(extent = {{-100, -90}, {100, -60}}, textColor = {0, 0, 127}, textString = "%name")}));
   end LoadInput;
 
   // ===========================================================================
@@ -58,12 +64,12 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
 
   model PositionServo "Speed- and torque-limited servo; command in deg.
 
-                     Cascaded saturated-P control (position -> velocity -> torque), each
-                     stage clamped to the servo's actual rating (max_speed, tau_stall) so
-                     those two datasheet numbers are what determines the motion, not a
-                     tuned gain. position_loop_gain/velocity_loop_gain are just internal
-                     loop-bandwidth constants, picked large enough that the outer limits
-                     are what bind in practice."
+                           Cascaded saturated-P control (position -> velocity -> torque), each
+                           stage clamped to the servo's actual rating (max_speed, tau_stall) so
+                           those two datasheet numbers are what determines the motion, not a
+                           tuned gain. position_loop_gain/velocity_loop_gain are just internal
+                           loop-bandwidth constants, picked large enough that the outer limits
+                           are what bind in practice."
     import Modelica.Units.SI;
     import Modelica.Units.Conversions.from_deg;
     import Modelica.Constants.pi;
@@ -72,9 +78,11 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     parameter Real max_speed(unit = "deg/s") = 300 annotation(
       HideResult = true);
     Modelica.Blocks.Interfaces.RealInput position_command(unit = "deg") annotation(
-      HideResult = true);
+      HideResult = true,
+      Placement(transformation(extent = {{-140, -20}, {-100, 20}})));
     Modelica.Mechanics.Rotational.Interfaces.Flange_a flange annotation(
-      HideResult = true);
+      HideResult = true,
+      Placement(transformation(extent = {{90, -10}, {110, 10}})));
     SI.Torque torque_output annotation(
       HideResult = true);
   protected
@@ -89,6 +97,8 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
   equation
     torque_output = smooth(0, noEvent(if torque_command > tau_stall then tau_stall elseif torque_command < -tau_stall then -tau_stall else torque_command));
     flange.tau = -torque_output;
+    annotation(
+      Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {Rectangle(extent = {{-80, -56}, {50, 56}}, lineColor = {0, 0, 0}, fillColor = {210, 210, 210}, fillPattern = FillPattern.Solid), Rectangle(extent = {{-80, 44}, {50, 56}}, lineColor = {0, 0, 0}, fillColor = {150, 150, 150}, fillPattern = FillPattern.Solid), Ellipse(extent = {{-52, -36}, {16, 36}}, lineColor = {0, 0, 0}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{-52, -16}, {16, 16}}, textColor = {0, 0, 0}, textString = "M"), Rectangle(extent = {{50, -8}, {88, 8}}, lineColor = {0, 0, 0}, fillColor = {95, 95, 95}, fillPattern = FillPattern.Solid), Ellipse(extent = {{80, -16}, {100, 16}}, lineColor = {0, 0, 0}, fillColor = {120, 120, 120}, fillPattern = FillPattern.Solid), Text(extent = {{-100, -96}, {100, -66}}, textColor = {0, 0, 127}, textString = "%name")}));
   end PositionServo;
 
   model ArmPlant "Planar 2-link arm with a placeholder for future optional joints."
@@ -106,13 +116,14 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     parameter Real elbow_angle_0(unit = "deg") = -45 annotation(
       HideResult = true);
     Modelica.Blocks.Interfaces.RealInput payload_mass(unit = "kg") annotation(
-      HideResult = true);
-    Modelica.Blocks.Interfaces.BooleanInput carrying annotation(
-      HideResult = true);
+      HideResult = true,
+      Placement(transformation(extent = {{90, -10}, {110, 10}})));
     Modelica.Mechanics.Rotational.Interfaces.Flange_a flange_shoulder annotation(
-      HideResult = true);
+      HideResult = true,
+      Placement(transformation(extent = {{90, 30}, {110, 70}})));
     Modelica.Mechanics.Rotational.Interfaces.Flange_a flange_elbow annotation(
-      HideResult = true);
+      HideResult = true,
+      Placement(transformation(extent = {{90, -70}, {110, -30}})));
     SI.Angle shoulder_angle(start = from_deg(shoulder_angle_0), fixed = true) annotation(
       HideResult = true);
     SI.Angle elbow_angle(start = from_deg(elbow_angle_0), fixed = true) annotation(
@@ -146,7 +157,37 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     gravity_torque_elbow = g_n*(elbow_input.link_mass*(forearm_com_x - elbow_joint_x) + elbow_input.servo.servo_mass*(forearm_tip_x - elbow_joint_x) + load_input.proxy_mass*(tool_tip_x - elbow_joint_x) + payload_mass*(tool_tip_x - elbow_joint_x));
     shoulder_inertia*der(shoulder_angular_velocity) = flange_shoulder.tau - gravity_torque_shoulder - shoulder_input.viscous_friction*shoulder_angular_velocity;
     elbow_inertia*der(elbow_angular_velocity) = flange_elbow.tau - gravity_torque_elbow - elbow_input.viscous_friction*elbow_angular_velocity;
+    annotation(
+      Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {Line(points = {{-80, -80}, {80, -80}}, color = {0, 0, 0}), Line(points = {{-70, -80}, {-80, -90}}, color = {0, 0, 0}), Line(points = {{-60, -80}, {-70, -90}}, color = {0, 0, 0}), Line(points = {{-50, -80}, {-60, -90}}, color = {0, 0, 0}), Line(points = {{-40, -80}, {-50, -90}}, color = {0, 0, 0}), Rectangle(extent = {{-55, -80}, {-25, -48}}, lineColor = {0, 0, 0}, fillColor = {90, 90, 90}, fillPattern = FillPattern.Solid), Line(points = {{-40, -48}, {8, 28}}, color = {80, 80, 80}, thickness = 2.5), Line(points = {{8, 28}, {72, 0}}, color = {110, 110, 110}, thickness = 2), Ellipse(extent = {{-52, -60}, {-28, -36}}, lineColor = {0, 0, 0}, fillColor = {255, 213, 79}, fillPattern = FillPattern.Solid), Ellipse(extent = {{-4, 16}, {20, 40}}, lineColor = {0, 0, 0}, fillColor = {255, 213, 79}, fillPattern = FillPattern.Solid), Ellipse(extent = {{64, -8}, {80, 8}}, lineColor = {0, 0, 0}, fillColor = {200, 200, 200}, fillPattern = FillPattern.Solid), Text(extent = {{-100, -100}, {100, -84}}, textColor = {0, 0, 127}, textString = "%name")}));
   end ArmPlant;
+
+  model Load "Tool proxy + optional carried payload at the arm tip.
+
+               payload_mass is zero when not carrying; ArmPlant still applies
+               load_input.proxy_mass as the always-present tool proxy."
+    import Modelica.Units.SI;
+    parameter LoadInput load_input annotation(
+      HideResult = true);
+    Modelica.Blocks.Interfaces.BooleanInput carrying annotation(
+      HideResult = true,
+      Placement(transformation(extent = {{-140, 30}, {-100, 70}})));
+    Modelica.Blocks.Interfaces.RealOutput payload_mass(unit = "kg") annotation(
+      HideResult = true,
+      Placement(transformation(extent = {{-120, -10}, {-100, 10}})));
+  equation
+    payload_mass = if carrying then load_input.proxy_mass else 0;
+    annotation(
+      Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {
+        Line(points = {{0, 90}, {0, 20}}, color = {0, 0, 0}, thickness = 0.8),
+        Line(points = {{-16, 20}, {16, 20}}, color = {0, 0, 0}),
+        Line(points = {{-16, 20}, {-16, 6}}, color = {0, 0, 0}),
+        Line(points = {{16, 20}, {16, 6}}, color = {0, 0, 0}),
+        Rectangle(extent = {{-40, 6}, {40, -54}}, lineColor = {0, 0, 0}, fillColor = {198, 156, 80}, fillPattern = FillPattern.Solid),
+        Line(points = {{-40, -14}, {40, -14}}, color = {0, 0, 0}),
+        Line(points = {{0, 6}, {0, -54}}, color = {0, 0, 0}),
+        Text(extent = {{-40, -42}, {40, -6}}, textColor = {0, 0, 0}, textString = "m"),
+        Text(extent = {{-100, -96}, {100, -66}}, textColor = {0, 0, 127}, textString = "%name")}));
+  end Load;
 
   // ===========================================================================
   // Experiment
@@ -164,11 +205,14 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     parameter LoadInput _load_input annotation(
       Dialog);
     PositionServo servo_sh(tau_stall = _shoulder_input.servo.tau_stall, max_speed = _shoulder_input.servo.max_speed) annotation(
-      HideResult = true);
+      Placement(transformation(origin = {6, 6}, extent = {{-80, 20}, {-20, 80}})));
     PositionServo servo_el(tau_stall = _elbow_input.servo.tau_stall, max_speed = _elbow_input.servo.max_speed) annotation(
-      HideResult = true);
+      HideResult = true,
+      Placement(transformation(extent = {{-80, -80}, {-20, -20}})));
     ArmPlant plant(shoulder_input = _shoulder_input, elbow_input = _elbow_input, load_input = _load_input, shoulder_angle_0 = _shoulder_input.position_sequence[1], elbow_angle_0 = _elbow_input.position_sequence[1]) annotation(
-      HideResult = true);
+      Placement(transformation(origin = {18, 6}, extent = {{10, -40}, {90, 40}})));
+    Load load(load_input = _load_input) annotation(
+      Placement(transformation(extent = {{100, -20}, {150, 30}})));
     // --- plot / harvest ------------------------------------------------------
     Real shoulder_setpoint(unit = "deg") "Shoulder command [deg]";
     Real elbow_setpoint(unit = "deg") "Elbow command [deg]";
@@ -183,7 +227,6 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
   protected
     Integer current_stage(start = 1, fixed = true) "1..6 → p1..p6; 7 = done";
     Boolean carrying(start = _load_input.carry_sequence[1], fixed = true);
-    SI.Mass payload_mass;
     Real shoulder_target(unit = "deg");
     Real elbow_target(unit = "deg");
     Boolean shoulder_at_target;
@@ -222,11 +265,10 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
   equation
     connect(servo_sh.flange, plant.flange_shoulder);
     connect(servo_el.flange, plant.flange_elbow);
+    connect(load.payload_mass, plant.payload_mass);
     servo_sh.position_command = shoulder_setpoint;
     servo_el.position_command = elbow_setpoint;
-    plant.payload_mass = payload_mass;
-    plant.carrying = carrying;
-    payload_mass = if carrying then _load_input.proxy_mass else 0;
+    load.carrying = carrying;
 // pre() breaks the algebraic event loop stage -> target -> arrived -> stage,
 // which OpenModelica would otherwise turn into an (unsupported) mixed
 // nonlinear system.
@@ -260,7 +302,8 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
       end if;
     end when;
     annotation(
-      experiment(StartTime = 0, StopTime = 15, Tolerance = 1e-6, Interval = 0.02));
+      experiment(StartTime = 0, StopTime = 15, Tolerance = 1e-6, Interval = 0.02),
+      Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {Line(points = {{-90, -82}, {90, -82}}, color = {0, 0, 0}), Line(points = {{-80, -82}, {-90, -92}}, color = {0, 0, 0}), Line(points = {{-70, -82}, {-80, -92}}, color = {0, 0, 0}), Line(points = {{-60, -82}, {-70, -92}}, color = {0, 0, 0}), Line(points = {{-50, -82}, {-60, -92}}, color = {0, 0, 0}), Rectangle(extent = {{-48, -82}, {-18, -30}}, lineColor = {0, 0, 0}, fillColor = {80, 80, 80}, fillPattern = FillPattern.Solid), Line(points = {{-20, 0}, {22, 48}}, color = {70, 70, 70}, thickness = 2.5), Line(points = {{42, 52}, {78, 18}}, color = {90, 90, 90}, thickness = 2), Rectangle(extent = {{-62, -30}, {-4, 18}}, lineColor = {0, 0, 0}, fillColor = {210, 210, 210}, fillPattern = FillPattern.Solid), Ellipse(extent = {{-50, -18}, {-16, 16}}, lineColor = {0, 0, 0}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{-50, -10}, {-16, 10}}, textColor = {0, 0, 0}, textString = "M"), Rectangle(extent = {{8, 32}, {50, 72}}, lineColor = {0, 0, 0}, fillColor = {210, 210, 210}, fillPattern = FillPattern.Solid), Ellipse(extent = {{16, 40}, {42, 66}}, lineColor = {0, 0, 0}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{16, 44}, {42, 62}}, textColor = {0, 0, 0}, textString = "M"), Line(points = {{78, 18}, {88, 28}}, color = {0, 0, 0}), Line(points = {{78, 18}, {88, 8}}, color = {0, 0, 0}), Rectangle(extent = {{84, -8}, {100, 22}}, lineColor = {0, 0, 0}, fillColor = {198, 156, 80}, fillPattern = FillPattern.Solid), Text(extent = {{-100, 96}, {100, 76}}, textColor = {0, 0, 0}, textString = "2-DOF Arm"), Text(extent = {{-100, -100}, {100, -84}}, textColor = {0, 0, 127}, textString = "%name")}));
   end RoboticArmSimulation;
   annotation(
     uses(Modelica(version = "4.0.0")));

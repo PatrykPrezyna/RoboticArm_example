@@ -208,6 +208,79 @@ def plot_early(designs: list[dict[str, object]], output_path: Path, labels: bool
     plt.close(fig)
 
 
+def early_decision_names(designs: list[dict[str, object]]) -> list[str]:
+    reserved = {"concept_id", "design", "total_cost_usd", "total_mass_g"}
+    return [name for name in designs[0] if name not in reserved]
+
+
+def plot_early_by_decision(
+    designs: list[dict[str, object]], output_path: Path
+) -> None:
+    """Create one color-coded subplot for each component decision."""
+    require_matplotlib()
+    decisions = early_decision_names(designs)
+    column_count = min(2, len(decisions))
+    row_count = (len(decisions) + column_count - 1) // column_count
+    fig, axes = plt.subplots(
+        row_count,
+        column_count,
+        figsize=(7 * column_count, 5.5 * row_count),
+        squeeze=False,
+        sharex=True,
+        sharey=True,
+    )
+    frontier = early_pareto_designs(designs)
+    color_map = plt.get_cmap("tab10")
+
+    for ax, decision in zip(axes.flat, decisions):
+        options = list(dict.fromkeys(str(row[decision]) for row in designs))
+        for option_index, option in enumerate(options):
+            option_designs = [row for row in designs if str(row[decision]) == option]
+            ax.scatter(
+                [float(row["total_cost_usd"]) for row in option_designs],
+                [float(row["total_mass_g"]) for row in option_designs],
+                color=color_map(option_index),
+                alpha=0.75,
+                s=60,
+                label=option,
+                zorder=3,
+            )
+
+        ax.plot(
+            [float(row["total_cost_usd"]) for row in frontier],
+            [float(row["total_mass_g"]) for row in frontier],
+            color="black",
+            linestyle="--",
+            marker="o",
+            linewidth=1.5,
+            label="Pareto frontier",
+            zorder=4,
+        )
+        for row in designs:
+            ax.annotate(
+                str(row["concept_id"]),
+                (float(row["total_cost_usd"]), float(row["total_mass_g"])),
+                xytext=(5, 4),
+                textcoords="offset points",
+                fontsize=7,
+            )
+
+        ax.set_title(f"Colored by {decision}")
+        ax.set_xlabel("Total component cost [USD]")
+        ax.set_ylabel("Total component mass [g]")
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=8)
+
+    for ax in list(axes.flat)[len(decisions):]:
+        ax.set_visible(False)
+
+    fig.suptitle("Early robotic-arm trade space by design decision", fontsize=15)
+    fig.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def latest_result_csv(output_dir: Path | None = None) -> Path:
     output_dir = output_dir or OUTPUT_DIR
     csv_files = sorted(output_dir.glob("sim_result_*.csv"))
@@ -307,6 +380,12 @@ def build_parser() -> argparse.ArgumentParser:
     early = subparsers.add_parser("early", help="Explore component cost and mass without simulation")
     early.add_argument("input", nargs="?", type=Path, default=DEFAULT_EARLY_INPUT)
     early.add_argument("--output", type=Path, default=None, help="PNG plot output path")
+    early.add_argument(
+        "--decision-output",
+        type=Path,
+        default=None,
+        help="Multi-panel decision-colored PNG output path",
+    )
     early.add_argument("--csv-output", type=Path, default=None, help="Calculated design CSV output path")
     early.add_argument("--labels", action="store_true", help="Annotate every candidate point")
 
@@ -330,12 +409,17 @@ def main(argv: list[str] | None = None) -> None:
             designs = enumerate_early_designs(load_json(args.input))
             csv_output = args.csv_output or timestamped_output("early_tradespace", ".csv")
             plot_output = args.output or timestamped_output("early_tradespace", ".png")
+            decision_output = args.decision_output or plot_output.with_name(
+                f"{plot_output.stem}_decisions{plot_output.suffix}"
+            )
             write_early_csv(designs, csv_output)
             plot_early(designs, plot_output, labels=args.labels)
+            plot_early_by_decision(designs, decision_output)
             print(f"Evaluated {len(designs)} design(s)")
             print_early_pareto(designs)
             print(f"Wrote {csv_output}")
             print(f"Wrote {plot_output}")
+            print(f"Wrote {decision_output}")
             return
 
         csv_path = args.csv_path or latest_result_csv()

@@ -54,6 +54,10 @@ class EarlyTradespaceTests(unittest.TestCase):
         self.assertEqual(designs[0]["total_cost_usd"], 10.0)
         self.assertEqual(designs[1]["total_mass_g"], 30.0)
         self.assertEqual(designs[1]["total_cost_usd"], 11.0)
+        self.assertEqual(
+            plot_tradespace.early_decision_names(designs),
+            ["Controller", "Servo"],
+        )
 
     def test_project_input_produces_sixteen_designs(self) -> None:
         payload = plot_tradespace.load_json(ROOT / "Simple_tradespace" / "inout.json")
