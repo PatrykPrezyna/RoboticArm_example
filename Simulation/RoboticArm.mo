@@ -2,7 +2,7 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
 
    This version focuses on the two most risk-relevant joints (shoulder and
    elbow). The structure is intentionally simple and easy to extend later by
-   adding more servo blocks, waypoints, and plant equations.
+   adding more servo blocks, waypoints, and arm equations.
 
    Angles [deg], absolute from horizontal, CCW+:
      shoulder / elbow — arm pose in the vertical plane
@@ -101,7 +101,7 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
       Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {Rectangle(extent = {{-80, -56}, {50, 56}}, lineColor = {0, 0, 0}, fillColor = {210, 210, 210}, fillPattern = FillPattern.Solid), Rectangle(extent = {{-80, 44}, {50, 56}}, lineColor = {0, 0, 0}, fillColor = {150, 150, 150}, fillPattern = FillPattern.Solid), Ellipse(extent = {{-52, -36}, {16, 36}}, lineColor = {0, 0, 0}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{-52, -16}, {16, 16}}, textColor = {0, 0, 0}, textString = "M"), Rectangle(extent = {{50, -8}, {88, 8}}, lineColor = {0, 0, 0}, fillColor = {95, 95, 95}, fillPattern = FillPattern.Solid), Ellipse(extent = {{80, -16}, {100, 16}}, lineColor = {0, 0, 0}, fillColor = {120, 120, 120}, fillPattern = FillPattern.Solid), Text(extent = {{-100, -96}, {100, -66}}, textColor = {0, 0, 127}, textString = "%name")}));
   end PositionServo;
 
-  model ArmPlant "Planar 2-link arm with a placeholder for future optional joints."
+  model Arm "Planar 2-link arm with a placeholder for future optional joints."
     import Modelica.Units.SI;
     import Modelica.Constants.g_n;
     import Modelica.Units.Conversions.from_deg;
@@ -159,11 +159,11 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     elbow_inertia*der(elbow_angular_velocity) = flange_elbow.tau - gravity_torque_elbow - elbow_input.viscous_friction*elbow_angular_velocity;
     annotation(
       Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {Line(points = {{-80, -80}, {80, -80}}, color = {0, 0, 0}), Line(points = {{-70, -80}, {-80, -90}}, color = {0, 0, 0}), Line(points = {{-60, -80}, {-70, -90}}, color = {0, 0, 0}), Line(points = {{-50, -80}, {-60, -90}}, color = {0, 0, 0}), Line(points = {{-40, -80}, {-50, -90}}, color = {0, 0, 0}), Rectangle(extent = {{-55, -80}, {-25, -48}}, lineColor = {0, 0, 0}, fillColor = {90, 90, 90}, fillPattern = FillPattern.Solid), Line(points = {{-40, -48}, {8, 28}}, color = {80, 80, 80}, thickness = 2.5), Line(points = {{8, 28}, {72, 0}}, color = {110, 110, 110}, thickness = 2), Ellipse(extent = {{-52, -60}, {-28, -36}}, lineColor = {0, 0, 0}, fillColor = {255, 213, 79}, fillPattern = FillPattern.Solid), Ellipse(extent = {{-4, 16}, {20, 40}}, lineColor = {0, 0, 0}, fillColor = {255, 213, 79}, fillPattern = FillPattern.Solid), Ellipse(extent = {{64, -8}, {80, 8}}, lineColor = {0, 0, 0}, fillColor = {200, 200, 200}, fillPattern = FillPattern.Solid), Text(extent = {{-100, -100}, {100, -84}}, textColor = {0, 0, 127}, textString = "%name")}));
-  end ArmPlant;
+  end Arm;
 
   model Load "Tool proxy + optional carried payload at the arm tip.
 
-               payload_mass is zero when not carrying; ArmPlant still applies
+               payload_mass is zero when not carrying; Arm still applies
                load_input.proxy_mass as the always-present tool proxy."
     import Modelica.Units.SI;
     parameter LoadInput load_input annotation(
@@ -209,7 +209,7 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     PositionServo servo_el(tau_stall = _elbow_input.servo.tau_stall, max_speed = _elbow_input.servo.max_speed) annotation(
       HideResult = true,
       Placement(transformation(extent = {{-80, -80}, {-20, -20}})));
-    ArmPlant plant(shoulder_input = _shoulder_input, elbow_input = _elbow_input, load_input = _load_input, shoulder_angle_0 = _shoulder_input.position_sequence[1], elbow_angle_0 = _elbow_input.position_sequence[1]) annotation(
+    Arm arm(shoulder_input = _shoulder_input, elbow_input = _elbow_input, load_input = _load_input, shoulder_angle_0 = _shoulder_input.position_sequence[1], elbow_angle_0 = _elbow_input.position_sequence[1]) annotation(
       Placement(transformation(origin = {18, 6}, extent = {{10, -40}, {90, 40}})));
     Load load(load_input = _load_input) annotation(
       Placement(transformation(extent = {{100, -20}, {150, 30}})));
@@ -263,9 +263,9 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
       end if;
     end twoJointWaypointSelect;
   equation
-    connect(servo_sh.flange, plant.flange_shoulder);
-    connect(servo_el.flange, plant.flange_elbow);
-    connect(load.payload_mass, plant.payload_mass);
+    connect(servo_sh.flange, arm.flange_shoulder);
+    connect(servo_el.flange, arm.flange_elbow);
+    connect(load.payload_mass, arm.payload_mass);
     servo_sh.position_command = shoulder_setpoint;
     servo_el.position_command = elbow_setpoint;
     load.carrying = carrying;
@@ -278,8 +278,8 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
 // pre-filter ahead of the servo.
     shoulder_setpoint = shoulder_target;
     elbow_setpoint = elbow_target;
-    shoulder_actual_angle = (180/pi)*plant.shoulder_angle;
-    elbow_actual_angle = (180/pi)*plant.elbow_angle;
+    shoulder_actual_angle = (180/pi)*arm.shoulder_angle;
+    elbow_actual_angle = (180/pi)*arm.elbow_angle;
     shoulder_torque = servo_sh.torque_output;
     elbow_torque = servo_el.torque_output;
     shoulder_at_target = abs(shoulder_actual_angle - shoulder_target) < 2.5;
