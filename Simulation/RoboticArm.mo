@@ -30,8 +30,6 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     ServoInput servo "Shoulder servo configuration";
     SI.Length link_length = 0.220 "Shoulder-to-elbow length [m]";
     SI.Mass link_mass = 0.04 "Upper-arm mass [kg]";
-    constant SI.Inertia inertia = 0.006 "Best-guess shoulder inertia [kg·m²]";
-    constant Real viscous_friction(unit = "N.m.s/rad") = 0.05 "Best-guess shoulder viscous friction [N·m·s/rad]";
   end ShoulderJointInput;
 
   record ElbowJointInput "Elbow-side joint and link definition"
@@ -40,8 +38,6 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     ServoInput servo "Elbow servo configuration";
     SI.Length link_length = 0.120 "Elbow-to-tool length [m]";
     SI.Mass link_mass = 0.045 "Forearm mass [kg]";
-    constant SI.Inertia inertia = 0.0015 "Best-guess elbow inertia [kg·m²]";
-    constant Real viscous_friction(unit = "N.m.s/rad") = 0.05 "Best-guess elbow viscous friction [N·m·s/rad]";
   end ElbowJointInput;
 
   record LoadInput "Payload and tool proxy for the arm tip"
@@ -60,12 +56,12 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
 
   model PositionServo "Speed- and torque-limited servo; command in deg.
 
-                               Cascaded saturated-P control (position -> velocity -> torque), each
-                               stage clamped to the servo's actual rating (max_speed, tau_stall) so
-                               those two datasheet numbers are what determines the motion, not a
-                               tuned gain. position_loop_gain/velocity_loop_gain are just internal
-                               loop-bandwidth constants, picked large enough that the outer limits
-                               are what bind in practice."
+                                                           Cascaded saturated-P control (position -> velocity -> torque), each
+                                                           stage clamped to the servo's actual rating (max_speed, tau_stall) so
+                                                           those two datasheet numbers are what determines the motion, not a
+                                                           tuned gain. position_loop_gain/velocity_loop_gain are just internal
+                                                           loop-bandwidth constants, picked large enough that the outer limits
+                                                           are what bind in practice."
     import Modelica.Units.SI;
     import Modelica.Units.Conversions.from_deg;
     import Modelica.Constants.pi;
@@ -111,11 +107,9 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
       HideResult = true,
       Placement(transformation(extent = {{90, -10}, {110, 10}})));
     Modelica.Mechanics.Rotational.Interfaces.Flange_a flange_shoulder annotation(
-      HideResult = true,
-      Placement(transformation(extent = {{90, 30}, {110, 70}})));
+      Placement(transformation(origin = {66, -24}, extent = {{-176, 64}, {-144, 96}}), iconTransformation(extent = {{-110, 40}, {-90, 60}})));
     Modelica.Mechanics.Rotational.Interfaces.Flange_a flange_elbow annotation(
-      HideResult = true,
-      Placement(transformation(extent = {{90, -70}, {110, -30}})));
+      Placement(transformation(origin = {55, 30}, extent = {{-165, -90}, {-135, -60}}), iconTransformation(extent = {{-110, -60}, {-90, -40}})));
     SI.Angle shoulder_angle(start = from_deg(shoulder_input.position_sequence[1]), fixed = true) annotation(
       HideResult = true);
     SI.Angle elbow_angle(start = from_deg(elbow_input.position_sequence[1]), fixed = true) annotation(
@@ -129,14 +123,15 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     SI.Torque gravity_torque_elbow annotation(
       HideResult = true);
   protected
+    constant Real viscous_friction(unit = "N.m.s/rad") = 0.05 "Best-guess joint viscous friction";
     SI.Length elbow_joint_x = shoulder_input.link_length*cos(shoulder_angle);
     SI.Length forearm_com_x = elbow_joint_x + (elbow_input.link_length/2)*cos(elbow_angle);
     SI.Length forearm_tip_x = elbow_joint_x + elbow_input.link_length*cos(elbow_angle);
     // forearm-frame (x,z) → horizontal lever at elbow_angle; shared by the tool
     // proxy and any carried payload since both sit at the same tool-tip point.
     SI.Length tool_tip_x = forearm_tip_x + load_input.proxy_length*cos(elbow_angle) - load_input.proxy_z_offset*sin(elbow_angle);
-    SI.Inertia shoulder_inertia = shoulder_input.inertia + shoulder_input.link_mass*(shoulder_input.link_length/2)^2 + shoulder_input.servo.servo_mass*shoulder_input.link_length^2 + elbow_input.servo.servo_mass*(shoulder_input.link_length + elbow_input.link_length)^2 + elbow_input.link_mass*(shoulder_input.link_length + elbow_input.link_length/2)^2 + load_input.proxy_mass*(shoulder_input.link_length + elbow_input.link_length + load_input.proxy_length)^2 + payload_mass*(shoulder_input.link_length + elbow_input.link_length + load_input.proxy_length)^2;
-    SI.Inertia elbow_inertia = elbow_input.inertia + elbow_input.link_mass*(elbow_input.link_length/2)^2 + elbow_input.servo.servo_mass*elbow_input.link_length^2 + load_input.proxy_mass*(elbow_input.link_length + load_input.proxy_length)^2 + payload_mass*(elbow_input.link_length + load_input.proxy_length)^2;
+    SI.Inertia shoulder_inertia = shoulder_input.link_mass*(shoulder_input.link_length/2)^2 + shoulder_input.servo.servo_mass*shoulder_input.link_length^2 + elbow_input.servo.servo_mass*(shoulder_input.link_length + elbow_input.link_length)^2 + elbow_input.link_mass*(shoulder_input.link_length + elbow_input.link_length/2)^2 + load_input.proxy_mass*(shoulder_input.link_length + elbow_input.link_length + load_input.proxy_length)^2 + payload_mass*(shoulder_input.link_length + elbow_input.link_length + load_input.proxy_length)^2;
+    SI.Inertia elbow_inertia = elbow_input.link_mass*(elbow_input.link_length/2)^2 + elbow_input.servo.servo_mass*elbow_input.link_length^2 + load_input.proxy_mass*(elbow_input.link_length + load_input.proxy_length)^2 + payload_mass*(elbow_input.link_length + load_input.proxy_length)^2;
   equation
     shoulder_angle = flange_shoulder.phi;
     elbow_angle = flange_elbow.phi;
@@ -147,16 +142,16 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
 // (elbow_joint_x) -- one link further down the chain.
     gravity_torque_shoulder = g_n*(shoulder_input.link_mass*(shoulder_input.link_length/2)*cos(shoulder_angle) + shoulder_input.servo.servo_mass*elbow_joint_x + elbow_input.servo.servo_mass*forearm_tip_x + elbow_input.link_mass*forearm_com_x + load_input.proxy_mass*tool_tip_x + payload_mass*tool_tip_x);
     gravity_torque_elbow = g_n*(elbow_input.link_mass*(forearm_com_x - elbow_joint_x) + elbow_input.servo.servo_mass*(forearm_tip_x - elbow_joint_x) + load_input.proxy_mass*(tool_tip_x - elbow_joint_x) + payload_mass*(tool_tip_x - elbow_joint_x));
-    shoulder_inertia*der(shoulder_angular_velocity) = flange_shoulder.tau - gravity_torque_shoulder - shoulder_input.viscous_friction*shoulder_angular_velocity;
-    elbow_inertia*der(elbow_angular_velocity) = flange_elbow.tau - gravity_torque_elbow - elbow_input.viscous_friction*elbow_angular_velocity;
+    shoulder_inertia*der(shoulder_angular_velocity) = flange_shoulder.tau - gravity_torque_shoulder - viscous_friction*shoulder_angular_velocity;
+    elbow_inertia*der(elbow_angular_velocity) = flange_elbow.tau - gravity_torque_elbow - viscous_friction*elbow_angular_velocity;
     annotation(
       Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {Line(points = {{-80, -80}, {80, -80}}, color = {0, 0, 0}), Line(points = {{-70, -80}, {-80, -90}}, color = {0, 0, 0}), Line(points = {{-60, -80}, {-70, -90}}, color = {0, 0, 0}), Line(points = {{-50, -80}, {-60, -90}}, color = {0, 0, 0}), Line(points = {{-40, -80}, {-50, -90}}, color = {0, 0, 0}), Rectangle(extent = {{-55, -80}, {-25, -48}}, lineColor = {0, 0, 0}, fillColor = {90, 90, 90}, fillPattern = FillPattern.Solid), Line(points = {{-40, -48}, {8, 28}}, color = {80, 80, 80}, thickness = 2.5), Line(points = {{8, 28}, {72, 0}}, color = {110, 110, 110}, thickness = 2), Ellipse(extent = {{-52, -60}, {-28, -36}}, lineColor = {0, 0, 0}, fillColor = {255, 213, 79}, fillPattern = FillPattern.Solid), Ellipse(extent = {{-4, 16}, {20, 40}}, lineColor = {0, 0, 0}, fillColor = {255, 213, 79}, fillPattern = FillPattern.Solid), Ellipse(extent = {{64, -8}, {80, 8}}, lineColor = {0, 0, 0}, fillColor = {200, 200, 200}, fillPattern = FillPattern.Solid), Text(extent = {{-100, -100}, {100, -84}}, textColor = {0, 0, 127}, textString = "%name")}));
   end ArmPlant;
 
   model Load "Tool proxy + optional carried payload at the arm tip.
 
-                   payload_mass is zero when not carrying; ArmPlant still applies
-                   load_input.proxy_mass as the always-present tool proxy."
+                                               payload_mass is zero when not carrying; ArmPlant still applies
+                                               load_input.proxy_mass as the always-present tool proxy."
     import Modelica.Units.SI;
     parameter LoadInput load_input annotation(
       HideResult = true);
@@ -165,7 +160,7 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
       Placement(transformation(extent = {{-140, 30}, {-100, 70}})));
     Modelica.Blocks.Interfaces.RealOutput payload_mass(unit = "kg") annotation(
       HideResult = true,
-      Placement(transformation(extent = {{-120, -10}, {-100, 10}})));
+      Placement(transformation(extent = {{-110, -10}, {-90, 10}})));
   equation
     payload_mass = if carrying then load_input.proxy_mass else 0;
     annotation(
@@ -188,14 +183,13 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     parameter LoadInput _load_input annotation(
       Dialog);
     PositionServo servo_sh(tau_stall = _shoulder_input.servo.tau_stall, max_speed = _shoulder_input.servo.max_speed) annotation(
-      Placement(transformation(origin = {6, 6}, extent = {{-80, 20}, {-20, 80}})));
+      Placement(transformation(origin = {-13.3333, 4}, extent = {{-86.6667, 26}, {-34.6667, 78}})));
     PositionServo servo_el(tau_stall = _elbow_input.servo.tau_stall, max_speed = _elbow_input.servo.max_speed) annotation(
-      HideResult = true,
-      Placement(transformation(extent = {{-80, -80}, {-20, -20}})));
-    ArmPlant plant(shoulder_input = _shoulder_input, elbow_input = _elbow_input, load_input = _load_input) annotation(
-      Placement(transformation(origin = {-4, 6}, extent = {{10, -40}, {90, 40}})));
+      Placement(transformation(extent = {{-100, -90}, {-40, -30}})));
+    ArmPlant plant(shoulder_input = _shoulder_input, elbow_input = _elbow_input, load_input = LoadInput(proxy_mass = 0.01)) annotation(
+      Placement(transformation(origin = {20, 0}, extent = {{-10, -50}, {70, 50}})));
     Load load(load_input = _load_input) annotation(
-      Placement(transformation(origin = {-36, -82}, extent = {{100, -20}, {150, 30}})));
+      Placement(transformation(origin = {54, 0}, extent = {{90, -25}, {140, 25}})));
     // --- plot / harvest ------------------------------------------------------
     Real shoulder_setpoint(unit = "deg") "Shoulder command [deg]";
     Real elbow_setpoint(unit = "deg") "Elbow command [deg]";
@@ -246,9 +240,12 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
       end if;
     end twoJointWaypointSelect;
   equation
-    connect(servo_sh.flange, plant.flange_shoulder);
-    connect(servo_el.flange, plant.flange_elbow);
-    connect(load.payload_mass, plant.payload_mass);
+    connect(servo_sh.flange, plant.flange_shoulder) annotation(
+      Line(points = {{-48, 56}, {-25, 56}, {-25, 25}, {10, 25}}, color = {95, 95, 95}));
+    connect(servo_el.flange, plant.flange_elbow) annotation(
+      Line(points = {{-40, -60}, {-25, -60}, {-25, -25}, {10, -25}}, color = {95, 95, 95}));
+    connect(load.payload_mass, plant.payload_mass) annotation(
+      Line(points = {{144, 0}, {90, 0}}, color = {0, 0, 127}));
     servo_sh.position_command = shoulder_setpoint;
     servo_el.position_command = elbow_setpoint;
     load.carrying = carrying;
@@ -286,6 +283,7 @@ package RoboticArm "2-DOF desktop arm: shoulder + elbow pick-and-place.
     end when;
     annotation(
       experiment(StartTime = 0, StopTime = 15, Tolerance = 1e-6, Interval = 0.02),
+      Diagram(coordinateSystem(preserveAspectRatio = false, extent = {{-120, -120}, {160, 120}})),
       Icon(coordinateSystem(preserveAspectRatio = true, extent = {{-100, -100}, {100, 100}}), graphics = {Line(points = {{-90, -82}, {90, -82}}, color = {0, 0, 0}), Line(points = {{-80, -82}, {-90, -92}}, color = {0, 0, 0}), Line(points = {{-70, -82}, {-80, -92}}, color = {0, 0, 0}), Line(points = {{-60, -82}, {-70, -92}}, color = {0, 0, 0}), Line(points = {{-50, -82}, {-60, -92}}, color = {0, 0, 0}), Rectangle(extent = {{-48, -82}, {-18, -30}}, lineColor = {0, 0, 0}, fillColor = {80, 80, 80}, fillPattern = FillPattern.Solid), Line(points = {{-20, 0}, {22, 48}}, color = {70, 70, 70}, thickness = 2.5), Line(points = {{42, 52}, {78, 18}}, color = {90, 90, 90}, thickness = 2), Rectangle(extent = {{-62, -30}, {-4, 18}}, lineColor = {0, 0, 0}, fillColor = {210, 210, 210}, fillPattern = FillPattern.Solid), Ellipse(extent = {{-50, -18}, {-16, 16}}, lineColor = {0, 0, 0}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{-50, -10}, {-16, 10}}, textColor = {0, 0, 0}, textString = "M"), Rectangle(extent = {{8, 32}, {50, 72}}, lineColor = {0, 0, 0}, fillColor = {210, 210, 210}, fillPattern = FillPattern.Solid), Ellipse(extent = {{16, 40}, {42, 66}}, lineColor = {0, 0, 0}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{16, 44}, {42, 62}}, textColor = {0, 0, 0}, textString = "M"), Line(points = {{78, 18}, {88, 28}}, color = {0, 0, 0}), Line(points = {{78, 18}, {88, 8}}, color = {0, 0, 0}), Rectangle(extent = {{84, -8}, {100, 22}}, lineColor = {0, 0, 0}, fillColor = {198, 156, 80}, fillPattern = FillPattern.Solid), Text(extent = {{-100, 96}, {100, 76}}, textColor = {0, 0, 0}, textString = "2-DOF Arm"), Text(extent = {{-100, -100}, {100, -84}}, textColor = {0, 0, 127}, textString = "%name")}));
   end RoboticArmSimulation;
   annotation(
